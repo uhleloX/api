@@ -1,8 +1,11 @@
 # uhleloX API
 
+### URL
+https://api.uhlelox.com/
+
 ## uhleloX Update API
 
-## URL
+### URL
 https://api.uhlelox.com/updates/
 
 ### General
