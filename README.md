@@ -2,6 +2,9 @@
 
 ## uhleloX Update API
 
+## URL
+https://api.uhlelox.com/updates/
+
 ### General
 The folder `updates` Structure of folder content has to be preserved.
 
