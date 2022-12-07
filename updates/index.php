@@ -13,38 +13,49 @@
 header( 'Content-Type: application/json' );
 
 /**
- * The JSON data file.
+ * The JSON DB File contents.
  *
- * @var int $dbjson Response code if file does not exist.
+ * @var int $dbjson JSON Data from JSON DB file.
  */
-$dbjson = read_db();
+$dbjson = readDB();
 
 /**
- * The JSON data of releases.
+ * The JSON Decoded data from JSON DB File.
  *
  * @var string $db The JSON data.
  */
-$db = parse_db( $dbjson );
+$db = parseDB( $dbjson );
 
 /**
  * Route GET requests.
  */
 if ( isset( $_GET['operation'] ) ) {
 
-	$op = htmlspecialchars( stripslashes( $_GET['operation'] ) );
+	$op = htmlspecialchars( $_GET['operation'] );
 
+	/**
+	 * Return status Code 202 on test operation.
+	 */
 	if ( 'test' === $op ) {
 		http_response_code( 202 );
 		die();
 	}
+
+	/**
+	 * Return only newest release JSON when operation requests newest
+	 */
 	if ( 'newest' === $op ) {
-		$newest_release = getNewest( $db );
+		$newest_release = get_newest( $db );
 		echo( json_encode( $newest_release ) );
 	}
+
+	/**
+	 * Return latest build if request is update, by build id.
+	 */
 	if ( 'update' === $op ) {
 		if ( isset( $_GET['buildid'] ) ) {
-			$release         = get_next( $db, htmlspecialchars( stripslashes( $_GET['buildid'] ) ) );
-			$newer_available = intval( $release['buildid'] ) > htmlspecialchars( stripslashes( intval( $_GET['buildid'] ) ) );
+			$release        = get_next( $db, htmlspecialchars( $_GET['buildid'] ) );
+			$newer_available = intval( $release['buildid'] ) > intval( htmlspecialchars( $_GET['buildid'] ) );
 			http_response_code( $newer_available ? 200 : 404 );
 			if ( $newer_available ) {
 				echo( json_encode( $release ) );
@@ -55,10 +66,14 @@ if ( isset( $_GET['operation'] ) ) {
 			die();
 		}
 	}
+
+	/**
+	 * Return latest download if request is download. Signature if request is signature.
+	 */
 	if ( 'download' === $op ) {
 		if ( isset( $_GET['buildid'] ) ) {
-			$release = get_by_ID( $db, htmlspecialchars( stripslashes( $_GET['buildid'] ) ) );
-			if ( null === $release ) {
+			$release = get_by_bid( $db, intval( htmlspecialchars( $_GET['buildid'] ) ) );
+			if ( $release == null ) {
 				http_response_code( 404 );
 				die();
 			}
@@ -75,76 +90,59 @@ if ( isset( $_GET['operation'] ) ) {
 		}
 	}
 } else {
+	// Return full JSON if no request specified.
 	echo( $dbjson );
 }
 
-/**
- * Return the corresponding Build Release data.
- *
- * @param string $db JSON string of release data.
- * @param int    $bid Build ID.
- */
-function get_by_ID( $db, $bid ) {
+function get_by_bid( $db, $bid ) {
 	foreach ( $db as $release ) {
-		if ( $bid === $release['buildid'] ) {
+		if ( $release['buildid'] == $bid ) {
 			return $release;
 		}
 	}
 	return null;
 }
 
-/**
- * Get the next release.
- *
- * @param string $db JSON string of release data.
- * @param int    $bid Build ID.
- */
-function get_next( $db, $bid ) {
+function get_next( $db, $buildID ) {
 	foreach ( $db as $release ) {
-		if ( $release['buildid'] > $bid ) {
+		if ( $release['buildid'] > $buildID ) {
 			return $release;
 		}
 	}
 	return false;
 }
 
-/**
- * Get the newest release.
- *
- * @param string $db JSON string of release data.
- */
 function get_newest( $db ) {
-	$highest_release = null;
+	$highestRelease = null;
 	foreach ( $db as $release ) {
-		if ( null === $highest_release ) {
-			$highest_release = $release;
+		if ( $highestRelease == null ) {
+			$highestRelease = $release;
 		} else {
-			$highest_release = $release['buildid'] > $highest_release['buildid'] ? $release : $highest_release;
+			$highestRelease = $release['buildid'] > $highestRelease['buildid'] ? $release : $highestRelease;
 		}
 	}
-	return $highest_release;
+	return $highestRelease;
 }
 
 /**
- * Decode Database File contents.
+ * JSON Decoded contentes fo Database JSON File.
  *
- * @param string $dbjson The file contents of the Database .
- * @return string | int The decoded JSON or error 500 status.
+ * @return string | int The JSON Decoded Database File contents or HTTP error 500 code.
  */
-function parse_db( $dbjson ) {
+function parseDB( $dbjson ) {
 	$db = json_decode( $dbjson, true );
-	if ( null === $db ) {
+	if ( $db === null ) {
 		http_response_code( 500 );
 	}
 	return $db;
 }
 
 /**
- * Get filecontentes of Database.
+ * Get filecontentes of Database JSON File.
  *
- * @return string | int The Database File contents or error 500 code.
+ * @return string | int The Database File contents or HTTP error 500 code.
  */
-function read_db() {
+function readDB() {
 	$dbfile = 'db.json';
 	if ( ! file_exists( $dbfile ) ) {
 		http_response_code( 500 );
@@ -152,4 +150,3 @@ function read_db() {
 	$dbjson = file_get_contents( 'db.json' );
 	return $dbjson;
 }
-
